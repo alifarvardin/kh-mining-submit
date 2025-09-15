@@ -9,7 +9,7 @@ import { Upload, X, FileText, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 // Webhook URL - can be easily changed
-const WEBHOOK_URL = 'https://ai.alifarvardin.ir/webhook-test/SendToDb';
+const WEBHOOK_URL = 'https://ai.alifarvardin.ir/webhook/SendToDb';
 
 interface FileUpload {
   id: string;
