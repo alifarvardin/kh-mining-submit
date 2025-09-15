@@ -134,32 +134,37 @@ const EngineeringForm: React.FC = () => {
       return;
     }
 
-    // Check total file size (multiple files shouldn't exceed 8MB total)
-    const totalFileSize = uploadedFiles.reduce((total, file) => total + file.size, 0);
-    const maxTotalSize = 8 * 1024 * 1024; // 8MB
-    
-    if (totalFileSize > maxTotalSize) {
-      toast({
-        title: "خطا در ارسال",
-        description: "مجموع حجم فایل‌ها نباید از 8 مگابایت بیشتر باشد.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
-      // If multiple files, send them one by one to avoid payload size issues
-      if (uploadedFiles.length > 1) {
-        await handleMultipleFileSubmission();
-      } else {
-        await handleSingleSubmission();
-      }
+      const submitData = new FormData();
+      
+      // Add form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        submitData.append(key, value);
+      });
+      
+      // Add submission timestamp
+      submitData.append('submittedAt', new Date().toISOString());
+      
+      // Add files
+      uploadedFiles.forEach((fileUpload, index) => {
+        submitData.append(`file_${index}`, fileUpload.file);
+      });
 
+      console.log('Attempting to send data to:', WEBHOOK_URL);
+      console.log('Form data entries:', Array.from(submitData.entries()).map(([key, value]) => [key, value instanceof File ? `File: ${value.name}` : value]));
+
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors', // Try no-cors mode first
+        body: submitData,
+      });
+
+      // With no-cors, we can't read the response, so we assume success
       toast({
         title: "موفقیت",
-        description: "اطلاعات با موفقیت ارسال شد.",
+        description: "اطلاعات ارسال شد. (در صورت عدم دریافت، لطفاً تنظیمات CORS سرور را بررسی کنید)",
       });
       
       // Reset form
@@ -178,11 +183,59 @@ const EngineeringForm: React.FC = () => {
 
     } catch (error) {
       console.error('Submit error:', error);
-      toast({
-        title: "خطا در ارسال",
-        description: error instanceof Error ? error.message : "خطای ناشناخته رخ داد.",
-        variant: "destructive"
-      });
+      
+      // Try with cors mode as fallback
+      try {
+        console.log('Trying with CORS mode...');
+        const submitData = new FormData();
+        
+        Object.entries(formData).forEach(([key, value]) => {
+          submitData.append(key, value);
+        });
+        submitData.append('submittedAt', new Date().toISOString());
+        uploadedFiles.forEach((fileUpload, index) => {
+          submitData.append(`file_${index}`, fileUpload.file);
+        });
+
+        const corsResponse = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            // Don't set Content-Type for FormData
+          },
+          body: submitData,
+        });
+
+        if (corsResponse.ok) {
+          toast({
+            title: "موفقیت",
+            description: "اطلاعات با موفقیت ارسال شد.",
+          });
+          
+          // Reset form
+          setFormData({
+            firstName: '',
+            lastName: '',
+            membershipNumber: '',
+            nationalId: '',
+            fileTitle: '',
+            phoneNumber: '',
+            cadastralCode: '',
+            licenseNumber: '',
+            description: '',
+          });
+          setUploadedFiles([]);
+        } else {
+          throw new Error(`خطای سرور: ${corsResponse.status} - ${corsResponse.statusText}`);
+        }
+      } catch (corsError) {
+        console.error('CORS attempt also failed:', corsError);
+        toast({
+          title: "خطا در ارسال",
+          description: `خطای شبکه: ${error instanceof Error ? error.message : 'ناشناخته'} - لطفاً اتصال اینترنت و تنظیمات CORS سرور را بررسی کنید.`,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
