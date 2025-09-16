@@ -72,11 +72,11 @@ const EngineeringForm: React.FC = () => {
         return;
       }
 
-      // Check file size (2MB = 2 * 1024 * 1024 bytes)
-      if (file.size > 2 * 1024 * 1024) {
+      // Check file size (25MB = 25 * 1024 * 1024 bytes)
+      if (file.size > 25 * 1024 * 1024) {
         toast({
           title: "حجم فایل زیاد",
-          description: "حجم فایل باید کمتر از 2 مگابایت باشد.",
+          description: "حجم فایل باید کمتر از 25 مگابایت باشد.",
           variant: "destructive"
         });
         return;
@@ -335,7 +335,7 @@ const EngineeringForm: React.FC = () => {
 
               {/* File Upload */}
               <div>
-                <Label>آپلود فایل (PDF, DOC, DOCX - حداکثر 2 مگابایت)</Label>
+                <Label>آپلود فایل (PDF, DOC, DOCX - حداکثر 25 مگابایت)</Label>
                 <div className="mt-2">
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -343,7 +343,7 @@ const EngineeringForm: React.FC = () => {
                       <p className="mb-2 text-sm text-muted-foreground">
                         <span className="font-medium">برای آپلود کلیک کنید</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">PDF, DOC, DOCX (حداکثر 2MB)</p>
+                      <p className="text-xs text-muted-foreground">PDF, DOC, DOCX (حداکثر 25MB)</p>
                     </div>
                     <input
                       type="file"
