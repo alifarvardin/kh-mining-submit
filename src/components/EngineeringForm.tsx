@@ -160,7 +160,18 @@ const EngineeringForm: React.FC = () => {
         body: submitData,
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       if (response.ok) {
+        // Try to read response text to see if server sends any data back
+        try {
+          const responseText = await response.text();
+          console.log('Server response:', responseText);
+        } catch (e) {
+          console.log('No response body or unable to read response');
+        }
+        
         toast({
           title: "موفقیت",
           description: "اطلاعات با موفقیت ارسال شد.",
@@ -180,7 +191,8 @@ const EngineeringForm: React.FC = () => {
         });
         setUploadedFiles([]);
       } else {
-        throw new Error(`خطای سرور: ${response.status} - ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'نامشخص');
+        throw new Error(`خطای سرور: ${response.status} - ${errorText}`);
       }
 
     } catch (error) {
