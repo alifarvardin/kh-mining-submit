@@ -157,173 +157,44 @@ const EngineeringForm: React.FC = () => {
 
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
-        mode: 'no-cors', // Try no-cors mode first
         body: submitData,
       });
 
-      // With no-cors, we can't read the response, so we assume success
-      toast({
-        title: "موفقیت",
-        description: "اطلاعات ارسال شد. (در صورت عدم دریافت، لطفاً تنظیمات CORS سرور را بررسی کنید)",
-      });
-      
-      // Reset form
-      setFormData({
-        firstName: '',
-        lastName: '',
-        membershipNumber: '',
-        nationalId: '',
-        fileTitle: '',
-        phoneNumber: '',
-        cadastralCode: '',
-        licenseNumber: '',
-        description: '',
-      });
-      setUploadedFiles([]);
+      if (response.ok) {
+        toast({
+          title: "موفقیت",
+          description: "اطلاعات با موفقیت ارسال شد.",
+        });
+        
+        // Reset form
+        setFormData({
+          firstName: '',
+          lastName: '',
+          membershipNumber: '',
+          nationalId: '',
+          fileTitle: '',
+          phoneNumber: '',
+          cadastralCode: '',
+          licenseNumber: '',
+          description: '',
+        });
+        setUploadedFiles([]);
+      } else {
+        throw new Error(`خطای سرور: ${response.status} - ${response.statusText}`);
+      }
 
     } catch (error) {
       console.error('Submit error:', error);
-      
-      // Try with cors mode as fallback
-      try {
-        console.log('Trying with CORS mode...');
-        const submitData = new FormData();
-        
-        Object.entries(formData).forEach(([key, value]) => {
-          submitData.append(key, value);
-        });
-        submitData.append('submittedAt', new Date().toISOString());
-        uploadedFiles.forEach((fileUpload, index) => {
-          submitData.append(`file_${index}`, fileUpload.file);
-        });
-
-        const corsResponse = await fetch(WEBHOOK_URL, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            // Don't set Content-Type for FormData
-          },
-          body: submitData,
-        });
-
-        if (corsResponse.ok) {
-          toast({
-            title: "موفقیت",
-            description: "اطلاعات با موفقیت ارسال شد.",
-          });
-          
-          // Reset form
-          setFormData({
-            firstName: '',
-            lastName: '',
-            membershipNumber: '',
-            nationalId: '',
-            fileTitle: '',
-            phoneNumber: '',
-            cadastralCode: '',
-            licenseNumber: '',
-            description: '',
-          });
-          setUploadedFiles([]);
-        } else {
-          throw new Error(`خطای سرور: ${corsResponse.status} - ${corsResponse.statusText}`);
-        }
-      } catch (corsError) {
-        console.error('CORS attempt also failed:', corsError);
-        toast({
-          title: "خطا در ارسال",
-          description: `خطای شبکه: ${error instanceof Error ? error.message : 'ناشناخته'} - لطفاً اتصال اینترنت و تنظیمات CORS سرور را بررسی کنید.`,
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "خطا در ارسال",
+        description: `خطای شبکه: ${error instanceof Error ? error.message : 'ناشناخته'}`,
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSingleSubmission = async () => {
-    const submitData = new FormData();
-    
-    // Add form fields
-    Object.entries(formData).forEach(([key, value]) => {
-      submitData.append(key, value);
-    });
-    
-    // Add submission timestamp
-    submitData.append('submittedAt', new Date().toISOString());
-    
-    // Add file if exists
-    if (uploadedFiles.length > 0) {
-      submitData.append('file_0', uploadedFiles[0].file);
-    }
-
-    const response = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'cors',
-      body: submitData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`خطای سرور: ${response.status} - ${response.statusText}`);
-    }
-  };
-
-  const handleMultipleFileSubmission = async () => {
-    // Send form data with first file
-    const firstSubmitData = new FormData();
-    
-    // Add form fields
-    Object.entries(formData).forEach(([key, value]) => {
-      firstSubmitData.append(key, value);
-    });
-    
-    // Add submission timestamp
-    firstSubmitData.append('submittedAt', new Date().toISOString());
-    firstSubmitData.append('totalFiles', uploadedFiles.length.toString());
-    firstSubmitData.append('fileIndex', '0');
-    
-    // Add first file
-    firstSubmitData.append('file_0', uploadedFiles[0].file);
-
-    const firstResponse = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      mode: 'cors',
-      body: firstSubmitData,
-    });
-
-    if (!firstResponse.ok) {
-      throw new Error(`خطای سرور در ارسال فایل اول: ${firstResponse.status}`);
-    }
-
-    // Send remaining files separately
-    for (let i = 1; i < uploadedFiles.length; i++) {
-      const additionalFileData = new FormData();
-      
-      // Add identifying information
-      additionalFileData.append('membershipNumber', formData.membershipNumber);
-      additionalFileData.append('nationalId', formData.nationalId);
-      additionalFileData.append('submittedAt', new Date().toISOString());
-      additionalFileData.append('fileIndex', i.toString());
-      additionalFileData.append('totalFiles', uploadedFiles.length.toString());
-      additionalFileData.append('isAdditionalFile', 'true');
-      
-      // Add file
-      additionalFileData.append(`file_${i}`, uploadedFiles[i].file);
-
-      const response = await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        mode: 'cors',
-        body: additionalFileData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`خطای سرور در ارسال فایل ${i + 1}: ${response.status}`);
-      }
-
-      // Add small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/50">
