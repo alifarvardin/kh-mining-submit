@@ -157,11 +157,12 @@ const EngineeringForm: React.FC = () => {
 
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
+        mode: 'cors',
         body: submitData,
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      console.log('Response headers:', Array.from(response.headers.entries()));
       
       if (response.ok) {
         // Try to read response text to see if server sends any data back
