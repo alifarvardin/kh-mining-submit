@@ -28,6 +28,7 @@ interface FormData {
   cadastralCode: string;
   licenseNumber: string;
   description: string;
+  email: string;
 }
 
 const EngineeringForm: React.FC = () => {
@@ -42,6 +43,7 @@ const EngineeringForm: React.FC = () => {
     cadastralCode: '',
     licenseNumber: '',
     description: '',
+    email: '',
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
@@ -54,6 +56,16 @@ const EngineeringForm: React.FC = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
+
+    // Check if adding new files would exceed the limit
+    if (uploadedFiles.length + files.length > 6) {
+      toast({
+        title: "تعداد فایل زیاد",
+        description: "حداکثر 6 فایل می‌توانید آپلود کنید.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     Array.from(files).forEach(file => {
       // Check file type
@@ -111,7 +123,7 @@ const EngineeringForm: React.FC = () => {
   const validateForm = () => {
     const requiredFields = [
       'firstName', 'lastName', 'membershipNumber', 'nationalId', 
-      'fileTitle', 'phoneNumber', 'cadastralCode'
+      'fileTitle', 'phoneNumber', 'cadastralCode', 'email'
     ];
     
     for (const field of requiredFields) {
@@ -119,6 +131,13 @@ const EngineeringForm: React.FC = () => {
         return false;
       }
     }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      return false;
+    }
+    
     return true;
   };
 
@@ -126,6 +145,17 @@ const EngineeringForm: React.FC = () => {
     e.preventDefault();
     
     if (!validateForm()) {
+      // Check email format specifically
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (formData.email && !emailRegex.test(formData.email)) {
+        toast({
+          title: "خطا در ارسال",
+          description: "لطفاً یک آدرس ایمیل معتبر وارد کنید.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       toast({
         title: "خطا در ارسال",
         description: "لطفاً تمام فیلدهای اجباری را پر کنید.",
@@ -164,7 +194,8 @@ const EngineeringForm: React.FC = () => {
       console.log('Response status:', response.status);
       console.log('Response headers:', Array.from(response.headers.entries()));
       
-      if (response.ok) {
+      // Consider it successful if status is 2xx or if we get any response that indicates server received the data
+      if (response.status >= 200 && response.status < 300) {
         // Try to read response text to see if server sends any data back
         try {
           const responseText = await response.text();
@@ -174,8 +205,8 @@ const EngineeringForm: React.FC = () => {
         }
         
         toast({
-          title: "موفقیت",
-          description: "اطلاعات با موفقیت ارسال شد.",
+          title: "ارسال موفق",
+          description: "اطلاعات شما با موفقیت ثبت شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.",
         });
         
         // Reset form
@@ -189,20 +220,32 @@ const EngineeringForm: React.FC = () => {
           cadastralCode: '',
           licenseNumber: '',
           description: '',
+          email: '',
         });
         setUploadedFiles([]);
       } else {
         const errorText = await response.text().catch(() => 'نامشخص');
-        throw new Error(`خطای سرور: ${response.status} - ${errorText}`);
+        console.error('Server error response:', errorText);
+        throw new Error(`خطای سرور: ${response.status}`);
       }
 
     } catch (error) {
       console.error('Submit error:', error);
-      toast({
-        title: "خطا در ارسال",
-        description: `خطای شبکه: ${error instanceof Error ? error.message : 'ناشناخته'}`,
-        variant: "destructive"
-      });
+      
+      // Check if it's a network error specifically
+      if (error instanceof Error && error.message.includes('fetch')) {
+        toast({
+          title: "خطا در اتصال",
+          description: "لطفاً اتصال اینترنت خود را بررسی کنید.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "خطا در ارسال",
+          description: "مشکلی در ارسال اطلاعات رخ داده است. لطفاً دوباره تلاش کنید.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -334,6 +377,19 @@ const EngineeringForm: React.FC = () => {
                 </div>
               </div>
 
+              {/* Email */}
+              <div>
+                <Label htmlFor="email">آدرس ایمیل جهت اطلاع‌رسانی از اصلاحات *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="example@email.com"
+                  required
+                />
+              </div>
+
               {/* Description */}
               <div>
                 <Label htmlFor="description">توضیحات</Label>
@@ -348,7 +404,7 @@ const EngineeringForm: React.FC = () => {
 
               {/* File Upload */}
               <div>
-                <Label>آپلود فایل (PDF, DOC, DOCX - حداکثر 25 مگابایت)</Label>
+                <Label>آپلود فایل (PDF, DOC, DOCX - حداکثر 25 مگابایت - حداکثر 6 فایل)</Label>
                 <div className="mt-2">
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/80 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
