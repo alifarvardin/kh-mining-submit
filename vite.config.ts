@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/",  // Set base to root for GitHub Pages
+  base: process.env.NODE_ENV === 'production' ? './' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
