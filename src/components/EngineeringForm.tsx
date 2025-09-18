@@ -48,6 +48,7 @@ const EngineeringForm: React.FC = () => {
 
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -228,6 +229,11 @@ const EngineeringForm: React.FC = () => {
       }
 
       if (submissionSuccessful) {
+        setSubmitResult({
+          type: 'success',
+          message: 'اطلاعات شما با موفقیت ثبت شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.'
+        });
+        
         toast({
           title: "ارسال موفق",
           description: "اطلاعات شما با موفقیت ثبت شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.",
@@ -248,6 +254,11 @@ const EngineeringForm: React.FC = () => {
         });
         setUploadedFiles([]);
       } else {
+        setSubmitResult({
+          type: 'error',
+          message: errorMessage || "مشکلی در ارسال اطلاعات رخ داده است. لطفاً دوباره تلاش کنید."
+        });
+        
         toast({
           title: "خطا در ارسال",
           description: errorMessage || "مشکلی در ارسال اطلاعات رخ داده است. لطفاً دوباره تلاش کنید.",
@@ -257,6 +268,11 @@ const EngineeringForm: React.FC = () => {
 
     } catch (error) {
       console.error('Unexpected error:', error);
+      setSubmitResult({
+        type: 'error',
+        message: "مشکلی در ارسال اطلاعات رخ داده است. لطفاً دوباره تلاش کنید."
+      });
+      
       toast({
         title: "خطا در ارسال",
         description: "مشکلی در ارسال اطلاعات رخ داده است. لطفاً دوباره تلاش کنید.",
@@ -278,6 +294,38 @@ const EngineeringForm: React.FC = () => {
           </h1>
         </div>
       </div>
+
+      {/* Result Modal */}
+      {submitResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background border rounded-lg shadow-lg max-w-md w-full p-6 text-center">
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+              submitResult.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+            }`}>
+              {submitResult.type === 'success' ? (
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <h3 className={`text-lg font-semibold mb-2 ${
+              submitResult.type === 'success' ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {submitResult.type === 'success' ? 'ارسال موفق' : 'خطا در ارسال'}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {submitResult.message}
+            </p>
+            <Button onClick={() => setSubmitResult(null)}>
+              بستن
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <div className="container mx-auto px-4 py-8">

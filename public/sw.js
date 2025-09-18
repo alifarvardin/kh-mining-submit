@@ -1,9 +1,9 @@
 const CACHE_NAME = 'mining-engineering-v1';
 const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-custom.png'
 ];
 
 // Install Service Worker
