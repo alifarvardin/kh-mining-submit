@@ -7,9 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, X, FileText, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-// Webhook URL - can be easily changed
-const WEBHOOK_URL = 'https://ai.alifarvardin.ir/webhook/SendToDb';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FileUpload {
   id: string;
@@ -28,7 +26,6 @@ interface FormData {
   cadastralCode: string;
   licenseNumber: string;
   description: string;
-  email: string;
 }
 
 const EngineeringForm: React.FC = () => {
@@ -43,7 +40,6 @@ const EngineeringForm: React.FC = () => {
     cadastralCode: '',
     licenseNumber: '',
     description: '',
-    email: '',
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
@@ -124,19 +120,13 @@ const EngineeringForm: React.FC = () => {
   const validateForm = () => {
     const requiredFields = [
       'firstName', 'lastName', 'membershipNumber', 'nationalId', 
-      'fileTitle', 'phoneNumber', 'cadastralCode', 'email'
+      'fileTitle', 'phoneNumber', 'cadastralCode'
     ];
     
     for (const field of requiredFields) {
       if (!formData[field as keyof FormData].trim()) {
         return false;
       }
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      return false;
     }
     
     return true;
@@ -146,17 +136,6 @@ const EngineeringForm: React.FC = () => {
     e.preventDefault();
     
     if (!validateForm()) {
-      // Check email format specifically
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (formData.email && !emailRegex.test(formData.email)) {
-        toast({
-          title: "خطا در ارسال",
-          description: "لطفاً یک آدرس ایمیل معتبر وارد کنید.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
       toast({
         title: "خطا در ارسال",
         description: "لطفاً تمام فیلدهای اجباری را پر کنید.",
@@ -168,65 +147,35 @@ const EngineeringForm: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const submitData = new FormData();
+      // Prepare file names array
+      const fileNames = uploadedFiles.map(file => file.name);
       
-      // Add form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        submitData.append(key, value);
-      });
-      
-      // Add submission timestamp
-      submitData.append('submittedAt', new Date().toISOString());
-      
-      // Add files
-      uploadedFiles.forEach((fileUpload, index) => {
-        submitData.append(`file_${index}`, fileUpload.file);
-      });
-
-      console.log('Attempting to send data to:', WEBHOOK_URL);
-      console.log('Form data entries:', Array.from(submitData.entries()).map(([key, value]) => [key, value instanceof File ? `File: ${value.name}` : value]));
-
-      let submissionSuccessful = false;
-      let errorMessage = '';
-
-      try {
-        const response = await fetch(WEBHOOK_URL, {
-          method: 'POST',
-          mode: 'cors',
-          body: submitData,
+      // Insert data into database
+      const { data, error } = await supabase
+        .from('engineering_submissions')
+        .insert({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          membership_number: formData.membershipNumber,
+          national_id: formData.nationalId,
+          file_title: formData.fileTitle,
+          phone_number: formData.phoneNumber,
+          cadastral_code: formData.cadastralCode,
+          license_number: formData.licenseNumber || null,
+          description: formData.description,
+          file_count: uploadedFiles.length,
+          file_names: fileNames
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Array.from(response.headers.entries()));
-        
-        // Consider it successful if status is 2xx
-        if (response.status >= 200 && response.status < 300) {
-          submissionSuccessful = true;
-          // Try to read response text to see if server sends any data back
-          try {
-            const responseText = await response.text();
-            console.log('Server response:', responseText);
-          } catch (e) {
-            console.log('No response body or unable to read response');
-          }
-        } else {
-          const errorText = await response.text().catch(() => 'نامشخص');
-          console.error('Server error response:', errorText);
-          errorMessage = `خطای سرور: ${response.status}`;
-        }
-      } catch (fetchError) {
-        console.error('Fetch error:', fetchError);
-        
-        // Since the data was actually sent (we can see it in network logs), 
-        // and this is likely a CORS or timeout issue on the server side,
-        // we'll show a success message but mention the connection issue
-        if (fetchError instanceof Error && fetchError.message.includes('Failed to fetch')) {
-          submissionSuccessful = true;
-          console.log('Treating as successful submission despite fetch error');
-        } else {
-          errorMessage = 'خطا در اتصال شبکه';
-        }
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error('خطا در ذخیره اطلاعات در دیتابیس');
       }
+
+      console.log('Data saved successfully:', data);
+      
+      let submissionSuccessful = true;
+      let errorMessage = '';
 
       if (submissionSuccessful) {
         setSubmitResult({
@@ -250,7 +199,6 @@ const EngineeringForm: React.FC = () => {
           cadastralCode: '',
           licenseNumber: '',
           description: '',
-          email: '',
         });
         setUploadedFiles([]);
       } else {
@@ -439,19 +387,6 @@ const EngineeringForm: React.FC = () => {
                     placeholder="شماره پروانه"
                   />
                 </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <Label htmlFor="email">آدرس ایمیل جهت اطلاع‌رسانی از اصلاحات *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="example@email.com"
-                  required
-                />
               </div>
 
               {/* Description */}
