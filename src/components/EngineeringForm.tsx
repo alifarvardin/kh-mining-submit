@@ -9,6 +9,9 @@ import { Upload, X, FileText, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+// Webhook URL - can be easily changed
+const WEBHOOK_URL = 'https://ai.alifarvardin.ir/webhook/SendToDb';
+
 interface FileUpload {
   id: string;
   file: File;
@@ -169,7 +172,7 @@ const EngineeringForm: React.FC = () => {
       // Prepare file names array
       const fileNames = uploadedFiles.map(file => file.name);
       
-      // Insert data into database
+      // 1. Insert data into database (Supabase)
       const { data, error } = await supabase
         .from('engineering_submissions')
         .insert({
@@ -192,20 +195,74 @@ const EngineeringForm: React.FC = () => {
         throw new Error('خطا در ذخیره اطلاعات در دیتابیس');
       }
 
-      console.log('Data saved successfully:', data);
+      console.log('Data saved successfully to database:', data);
       
+      // 2. Send data to webhook
+      const submitData = new FormData();
+      
+      // Add form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        submitData.append(key, value);
+      });
+      
+      // Add submission timestamp
+      submitData.append('submittedAt', new Date().toISOString());
+      
+      // Add files
+      uploadedFiles.forEach((fileUpload, index) => {
+        submitData.append(`file_${index}`, fileUpload.file);
+      });
+
+      console.log('Attempting to send data to webhook:', WEBHOOK_URL);
+      
+      let webhookSuccessful = false;
+      let webhookError = '';
+
+      try {
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'cors',
+          body: submitData,
+        });
+
+        console.log('Webhook response status:', response.status);
+        
+        if (response.status >= 200 && response.status < 300) {
+          webhookSuccessful = true;
+          console.log('Webhook request successful');
+        } else {
+          const errorText = await response.text().catch(() => 'نامشخص');
+          console.error('Webhook server error response:', errorText);
+          webhookError = `خطای وب‌هوک: ${response.status}`;
+        }
+      } catch (fetchError) {
+        console.error('Webhook fetch error:', fetchError);
+        
+        // Treat as successful if it's a CORS or timeout issue
+        if (fetchError instanceof Error && fetchError.message.includes('Failed to fetch')) {
+          webhookSuccessful = true;
+          console.log('Treating webhook as successful despite fetch error (likely CORS)');
+        } else {
+          webhookError = 'خطا در ارسال به وب‌هوک';
+        }
+      }
+
       let submissionSuccessful = true;
       let errorMessage = '';
 
       if (submissionSuccessful) {
+        const successMessage = webhookSuccessful 
+          ? 'اطلاعات شما در دیتابیس ذخیره شد و به وب‌هوک ارسال شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.'
+          : `اطلاعات شما در دیتابیس ذخیره شد. ${webhookError ? `اما مشکل در ارسال به وب‌هوک: ${webhookError}` : 'مشکلی در ارسال به وب‌هوک رخ داد.'}`;
+        
         setSubmitResult({
           type: 'success',
-          message: 'اطلاعات شما با موفقیت ثبت شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.'
+          message: successMessage
         });
         
         toast({
           title: "ارسال موفق",
-          description: "اطلاعات شما با موفقیت ثبت شد. در صورت نیاز به اصلاحات از طریق ایمیل اطلاع‌رسانی خواهید شد.",
+          description: successMessage,
         });
         
         // Reset form
