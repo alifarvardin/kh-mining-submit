@@ -19,6 +19,7 @@ export type Database = {
           cadastral_code: string
           created_at: string
           description: string | null
+          email: string
           file_count: number
           file_names: string[] | null
           file_title: string
@@ -35,6 +36,7 @@ export type Database = {
           cadastral_code: string
           created_at?: string
           description?: string | null
+          email?: string
           file_count?: number
           file_names?: string[] | null
           file_title: string
@@ -51,6 +53,7 @@ export type Database = {
           cadastral_code?: string
           created_at?: string
           description?: string | null
+          email?: string
           file_count?: number
           file_names?: string[] | null
           file_title?: string

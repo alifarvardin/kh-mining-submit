@@ -26,6 +26,7 @@ interface FormData {
   cadastralCode: string;
   licenseNumber: string;
   description: string;
+  email: string;
 }
 
 const EngineeringForm: React.FC = () => {
@@ -40,6 +41,7 @@ const EngineeringForm: React.FC = () => {
     cadastralCode: '',
     licenseNumber: '',
     description: '',
+    email: '',
   });
 
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
@@ -120,13 +122,19 @@ const EngineeringForm: React.FC = () => {
   const validateForm = () => {
     const requiredFields = [
       'firstName', 'lastName', 'membershipNumber', 'nationalId', 
-      'fileTitle', 'phoneNumber', 'cadastralCode'
+      'fileTitle', 'phoneNumber', 'cadastralCode', 'email'
     ];
     
     for (const field of requiredFields) {
       if (!formData[field as keyof FormData].trim()) {
         return false;
       }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      return false;
     }
     
     return true;
@@ -136,6 +144,17 @@ const EngineeringForm: React.FC = () => {
     e.preventDefault();
     
     if (!validateForm()) {
+      // Check email format specifically
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (formData.email && !emailRegex.test(formData.email)) {
+        toast({
+          title: "خطا در ارسال",
+          description: "لطفاً یک آدرس ایمیل معتبر وارد کنید.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       toast({
         title: "خطا در ارسال",
         description: "لطفاً تمام فیلدهای اجباری را پر کنید.",
@@ -163,6 +182,7 @@ const EngineeringForm: React.FC = () => {
           cadastral_code: formData.cadastralCode,
           license_number: formData.licenseNumber || null,
           description: formData.description,
+          email: formData.email,
           file_count: uploadedFiles.length,
           file_names: fileNames
         });
@@ -199,6 +219,7 @@ const EngineeringForm: React.FC = () => {
           cadastralCode: '',
           licenseNumber: '',
           description: '',
+          email: '',
         });
         setUploadedFiles([]);
       } else {
@@ -387,6 +408,19 @@ const EngineeringForm: React.FC = () => {
                     placeholder="شماره پروانه"
                   />
                 </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <Label htmlFor="email">آدرس ایمیل جهت اطلاع‌رسانی از اصلاحات *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="example@email.com"
+                  required
+                />
               </div>
 
               {/* Description */}
