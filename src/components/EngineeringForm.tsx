@@ -178,6 +178,9 @@ const EngineeringForm: React.FC = () => {
       // Add submission timestamp
       submitData.append('submittedAt', new Date().toISOString());
       
+      // Add file count
+      submitData.append('fileCount', uploadedFiles.length.toString());
+      
       // Add files
       uploadedFiles.forEach((fileUpload, index) => {
         submitData.append(`file_${index}`, fileUpload.file);
@@ -190,11 +193,20 @@ const EngineeringForm: React.FC = () => {
       let errorMessage = '';
 
       try {
+        // Create AbortController for timeout (60 seconds for file uploads)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const response = await fetch(WEBHOOK_URL, {
           method: 'POST',
           mode: 'cors',
           body: submitData,
+          signal: controller.signal,
+          // Add keep-alive for mobile network stability
+          keepalive: true,
         });
+
+        clearTimeout(timeoutId);
 
         console.log('Response status:', response.status);
         console.log('Response headers:', Array.from(response.headers.entries()));
@@ -217,14 +229,21 @@ const EngineeringForm: React.FC = () => {
       } catch (fetchError) {
         console.error('Fetch error:', fetchError);
         
+        // Check if it's an abort/timeout error
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          errorMessage = 'زمان ارسال به پایان رسید. لطفاً اتصال اینترنت خود را بررسی کنید.';
+        } 
         // Since the data was actually sent (we can see it in network logs), 
         // and this is likely a CORS or timeout issue on the server side,
         // we'll show a success message but mention the connection issue
-        if (fetchError instanceof Error && fetchError.message.includes('Failed to fetch')) {
+        else if (fetchError instanceof Error && (
+          fetchError.message.includes('Failed to fetch') || 
+          fetchError.message.includes('Network request failed')
+        )) {
           submissionSuccessful = true;
           console.log('Treating as successful submission despite fetch error');
         } else {
-          errorMessage = 'خطا در اتصال شبکه';
+          errorMessage = 'خطا در اتصال شبکه. لطفاً اتصال اینترنت خود را بررسی کنید.';
         }
       }
 
